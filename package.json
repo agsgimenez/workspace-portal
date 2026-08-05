@@ -1,0 +1,44 @@
+{
+  "name": "workspace-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A secure, read-only web portal for navigating multi-project workspaces.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "dev:server": "tsx watch src/server/main.ts",
+    "dev:web": "vite",
+    "build": "pnpm clean && pnpm build:web && pnpm build:server",
+    "build:web": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "clean": "node scripts/clean.mjs",
+    "start": "node dist/server/server/main.js",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage src/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "audit": "pnpm audit --audit-level low"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "11.2.0",
+    "@fastify/static": "10.1.2",
+    "fastify": "5.11.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.0.5",
+    "tsx": "4.23.5",
+    "typescript": "5.9.3",
+    "vite": "8.2.0"
+  }
+}

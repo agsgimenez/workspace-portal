@@ -1,0 +1,22 @@
+services:
+  workspace-portal:
+    build: .
+    container_name: workspace-portal
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    environment:
+      WORKSPACE_ROOT: /workspace
+      WORKSPACE_PORTAL_CONFIG: /app/workspace-portal.config.json
+    volumes:
+      - ${WORKSPACE_ROOT:?Set WORKSPACE_ROOT in .env}:/workspace:ro
+      - ${WORKSPACE_PORTAL_CONFIG_FILE:-./workspace-portal.config.json}:/app/workspace-portal.config.json:ro
+    ports:
+      - "127.0.0.1:4178:4178"
+      - "172.17.0.1:4178:4178"

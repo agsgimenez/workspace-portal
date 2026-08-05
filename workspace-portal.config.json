@@ -1,0 +1,45 @@
+{
+  "title": "Workspace Portal",
+  "roots": [
+    {
+      "path": "README.md",
+      "label": "Workspace",
+      "kind": "document"
+    },
+    {
+      "path": "projects",
+      "label": "Projects",
+      "kind": "projects"
+    },
+    {
+      "path": "docs",
+      "label": "Documentation",
+      "kind": "knowledge"
+    }
+  ],
+  "excludeSegments": [
+    "node_modules",
+    "dist",
+    "build",
+    "bin",
+    "obj",
+    "coverage",
+    ".temp",
+    ".cache",
+    ".next",
+    ".nuxt",
+    ".output",
+    "__pycache__"
+  ],
+  "allowedExtensions": [
+    ".md", ".mdx", ".txt", ".json", ".jsonc", ".yaml", ".yml", ".toml",
+    ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".vue", ".svelte",
+    ".css", ".scss", ".html", ".cs", ".csproj", ".sln", ".sql", ".py",
+    ".sh", ".ps1", ".java", ".kt", ".kts", ".xml", ".properties",
+    ".gradle", ".dockerfile", ".pdf"
+  ],
+  "allowedNames": ["Dockerfile", "Makefile", "LICENSE", "README"],
+  "maxFileBytes": 1048576,
+  "maxTreeEntries": 500,
+  "maxSearchResults": 100
+}
