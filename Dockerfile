@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24.16.0-alpine AS build
+FROM node:26.5.1-alpine AS build
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
@@ -11,7 +11,7 @@ COPY scripts ./scripts
 COPY src ./src
 RUN pnpm build && pnpm prune --prod
 
-FROM node:24.16.0-alpine AS runtime
+FROM node:26.5.1-alpine AS runtime
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4178
