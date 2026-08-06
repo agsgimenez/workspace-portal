@@ -133,7 +133,8 @@ security perimeter.
 Read-only access can still leak confidential data, so confidentiality is the
 primary boundary:
 
-- hidden paths and common generated directories are excluded;
+- `.git` and common generated directories are explicitly excluded; other
+  dot-directories are visible only when their file types pass the allowlist;
 - key stores, databases, environment files and secret-like filenames are
   denied;
 - symlinks cannot escape the visible roots;

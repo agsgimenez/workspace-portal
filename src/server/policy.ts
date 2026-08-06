@@ -39,7 +39,7 @@ export class PathPolicy {
 
   isExcluded(relativePath: string): boolean {
     const segments = relativePath.split("/").filter(Boolean);
-    return segments.some((segment) => segment.startsWith(".") || this.config.excludeSegments.includes(segment));
+    return segments.some((segment) => this.config.excludeSegments.includes(segment));
   }
 
   isAllowedFile(relativePath: string): boolean {

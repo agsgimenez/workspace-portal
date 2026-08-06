@@ -163,6 +163,9 @@ export function App() {
               <span>{root.kind === "projects" ? "◇" : root.kind === "knowledge" ? "◎" : "□"}</span>{root.label}
             </button>
           ))}
+          <a className="nav-link" href="https://vault.workspace.lab" target="_blank" rel="noreferrer">
+            <span>⌾</span>Baúl privado
+          </a>
         </nav>
 
         <div className="sidebar-note">

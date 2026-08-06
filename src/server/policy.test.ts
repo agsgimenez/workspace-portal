@@ -9,7 +9,7 @@ import { PathPolicy } from "./policy.js";
 const config: PortalConfig = {
   title: "Test",
   roots: [{ path: "projects", label: "Projects", kind: "projects" }],
-  excludeSegments: ["node_modules"],
+  excludeSegments: ["node_modules", ".git"],
   allowedExtensions: [".md", ".ts"],
   allowedNames: ["Dockerfile"],
   maxFileBytes: 1024,
@@ -35,6 +35,15 @@ test("rejects traversal and sensitive filenames", async () => {
   await writeFile(path.join(root, "projects", "demo", "api-token.md"), "secret");
   await assert.rejects(policy.resolve("../etc/passwd"), { code: "PATH_DENIED" });
   await assert.rejects(policy.resolve("projects/demo/api-token.md"), { code: "FILE_DENIED" });
+});
+
+test("allows dot-directories unless they are explicitly excluded", async () => {
+  const { root, policy } = await fixture();
+  await mkdir(path.join(root, "projects", "demo", ".task"));
+  await writeFile(path.join(root, "projects", "demo", ".task", "plan.md"), "# Plan");
+  await mkdir(path.join(root, "projects", "demo", ".git"));
+  assert.equal((await policy.resolve("projects/demo/.task/plan.md", "file")).relative, "projects/demo/.task/plan.md");
+  await assert.rejects(policy.resolve("projects/demo/.git"), { code: "PATH_DENIED" });
 });
 
 test("rejects symlinks escaping configured roots", async () => {

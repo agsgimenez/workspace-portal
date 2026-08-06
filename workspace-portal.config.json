@@ -18,6 +18,7 @@
     }
   ],
   "excludeSegments": [
+    ".git",
     "node_modules",
     "dist",
     "build",

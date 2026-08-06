@@ -24,9 +24,9 @@ button { color: inherit; }
 .brand strong { font-size: 14px; letter-spacing: .01em; }
 .brand small { margin-top: 3px; color: var(--muted); font-size: 11px; }
 .nav-label { padding: 0 10px; color: #566074; text-transform: uppercase; font-size: 10px; letter-spacing: .16em; font-weight: 700; }
-nav button { width: 100%; display: flex; gap: 12px; align-items: center; border: 0; border-radius: 7px; background: transparent; padding: 10px; color: #a8b0bf; text-align: left; cursor: pointer; }
-nav button:hover { background: var(--panel-2); color: white; }
-nav button span { color: var(--cyan); }
+nav button, .nav-link { width: 100%; display: flex; gap: 12px; align-items: center; border: 0; border-radius: 7px; background: transparent; padding: 10px; color: #a8b0bf; text-align: left; cursor: pointer; box-sizing: border-box; font: inherit; text-decoration: none; }
+nav button:hover, .nav-link:hover { background: var(--panel-2); color: white; }
+nav button span, .nav-link span { color: var(--cyan); }
 .sidebar-note { margin-top: auto; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: #bac2d0; font-size: 12px; }
 .sidebar-note small { display: block; color: var(--muted); line-height: 1.5; margin: 8px 0 0 16px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 8px; background: var(--lime); box-shadow: 0 0 12px #b6f36b88; }
