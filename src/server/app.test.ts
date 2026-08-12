@@ -62,7 +62,9 @@ test("serves allowed PDF files inline without exposing arbitrary raw files", asy
   assert.equal(pdf.statusCode, 200);
   assert.match(String(pdf.headers["content-type"]), /application\/pdf/);
   assert.equal(pdf.headers["content-disposition"], "inline");
+  assert.match(String(pdf.headers["content-security-policy"]), /frame-ancestors 'self'/);
   const markdown = await app.inject({ method: "GET", url: "/api/raw?path=projects/demo/README.md" });
   assert.equal(markdown.statusCode, 415);
+  assert.match(String(markdown.headers["content-security-policy"]), /frame-ancestors 'self'/);
   await app.close();
 });
