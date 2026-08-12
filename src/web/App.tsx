@@ -270,7 +270,10 @@ export function App() {
             <article className="document">
               <div className="document-header">
                 <div><p>{document.extension || "archivo"}</p><h1>{document.name}</h1><small>{document.path}</small></div>
-                {document.repository?.webUrl && <a href={document.repository.webUrl} target="_blank" rel="noreferrer">Abrir repositorio ↗</a>}
+                <div className="document-actions">
+                  {(document.extension === ".md" || document.extension === ".mdx") && <button type="button" onClick={() => window.print()}>Guardar como PDF</button>}
+                  {document.repository?.webUrl && <a href={document.repository.webUrl} target="_blank" rel="noreferrer">Abrir repositorio ↗</a>}
+                </div>
               </div>
               {document.truncated && <div className="alert">Vista truncada por el límite de tamaño seguro.</div>}
               {document.extension === ".md" || document.extension === ".mdx" ? (
