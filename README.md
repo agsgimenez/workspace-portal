@@ -1,23 +1,31 @@
-<div align="center">
+<p align="center">
+  <a href="https://agsgimenez.github.io/workspace-portal/">
+    <img src="docs/readme-hero.svg" alt="Workspace Portal — your whole workspace in one calm, secure view">
+  </a>
+</p>
 
-# Workspace Portal
+<p align="center">
+  <strong>A self-hosted, read-only explorer for projects, Markdown knowledge,<br>local Git repositories and branch snapshots.</strong>
+</p>
 
-### Your whole workspace. One calm, secure view.
+<p align="center">
+  <a href="https://agsgimenez.github.io/workspace-portal/"><strong>Explore the website</strong></a>
+  ·
+  <a href="#quick-start">Quick start</a>
+  ·
+  <a href="SECURITY.md">Security model</a>
+  ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-A self-hosted, read-only web explorer for projects, Markdown knowledge,
-local Git repositories and branch snapshots.
+<p align="center">
 
 [![CI](https://github.com/agsgimenez/workspace-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/agsgimenez/workspace-portal/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/agsgimenez/workspace-portal/actions/workflows/pages.yml/badge.svg)](https://agsgimenez.github.io/workspace-portal/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-b7f36d.svg)](LICENSE)
 [![Node 24](https://img.shields.io/badge/node-24-66d9d0.svg)](package.json)
 [![pnpm 11.8.0](https://img.shields.io/badge/pnpm-11.8.0-f3cf68.svg)](package.json)
-
-[**Explore the website**](https://agsgimenez.github.io/workspace-portal/) ·
-[Quick start](#quick-start) · [Security model](SECURITY.md) ·
-[Contributing](CONTRIBUTING.md)
-
-</div>
+</p>
 
 ---
 
@@ -49,6 +57,8 @@ execution from the browser.
 - **Workspace search** — search visible text with strict result and size limits.
 - **File-aware browsing** — recognize common source/config formats and preview
   allowed PDFs.
+- **Markdown PDF export** — print any visible Markdown or MDX document with a
+  paper-specific layout, without writing files on the server.
 - **Hardened deployment** — run non-root, drop Linux capabilities and mount the
   workspace read-only.
 
