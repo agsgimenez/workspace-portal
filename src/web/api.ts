@@ -14,8 +14,10 @@ export const api = {
   projects: () => get<ProjectSummary[]>("/api/projects"),
   tree: (path: string) => get<TreeEntry[]>(`/api/tree?path=${encodeURIComponent(path)}`),
   file: (path: string) => get<FileDocument>(`/api/file?path=${encodeURIComponent(path)}`),
+  rawUrl: (path: string) => `/api/raw?path=${encodeURIComponent(path)}`,
   repository: (path: string) => get<RepositoryInfo | null>(`/api/repository?path=${encodeURIComponent(path)}`),
   gitTree: (repo: string, branch: string, path: string) => get<TreeEntry[]>(`/api/git/tree?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&path=${encodeURIComponent(path)}`),
   gitFile: (repo: string, branch: string, path: string) => get<FileDocument>(`/api/git/file?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&path=${encodeURIComponent(path)}`),
+  gitRawUrl: (repo: string, branch: string, path: string) => `/api/git/raw?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&path=${encodeURIComponent(path)}`,
   search: (query: string) => get<SearchResult[]>(`/api/search?q=${encodeURIComponent(query)}`),
 };

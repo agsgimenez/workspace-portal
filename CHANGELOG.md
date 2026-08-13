@@ -2,6 +2,13 @@
 
 All notable changes to Workspace Portal are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Bounded PNG, JPEG and WebP previews from the working tree and local branch
+  snapshots, with signature validation and no-store responses.
+
 ## [0.1.0] - 2026-08-12
 
 ### Added

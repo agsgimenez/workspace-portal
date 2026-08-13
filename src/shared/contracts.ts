@@ -13,6 +13,7 @@ export interface PortalConfig {
   allowedExtensions: string[];
   allowedNames: string[];
   maxFileBytes: number;
+  maxImageBytes: number;
   maxTreeEntries: number;
   maxSearchResults: number;
 }

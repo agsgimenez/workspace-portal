@@ -6,6 +6,17 @@ import { api } from "./api";
 
 type View = { kind: "home" } | { kind: "directory"; path: string } | { kind: "file"; path: string };
 type BranchView = { repository: RepositoryInfo; branch: string };
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+
+function fileExtension(filePath: string): string {
+  const name = filePath.toLowerCase().split("/").at(-1) ?? "";
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot) : "";
+}
+
+function isImagePath(filePath: string): boolean {
+  return IMAGE_EXTENSIONS.has(fileExtension(filePath));
+}
 
 function safeHref(href: string | undefined): string | undefined {
   if (!href) return undefined;
@@ -56,6 +67,10 @@ const FILE_TYPES: Record<string, { label: string; tone: string }> = {
   ".xml": { label: "X", tone: "xml" },
   ".toml": { label: "T", tone: "config" },
   ".pdf": { label: "PDF", tone: "pdf" },
+  ".png": { label: "IMG", tone: "image" },
+  ".jpg": { label: "IMG", tone: "image" },
+  ".jpeg": { label: "IMG", tone: "image" },
+  ".webp": { label: "IMG", tone: "image" },
 };
 
 function FileTypeIcon({ entry }: { entry: TreeEntry }) {
@@ -109,10 +124,14 @@ export function App() {
       if (inSelectedRepository) {
         const relative = view.path.slice(branchView.repository.path.length).replace(/^\/+/, "");
         setRepository(branchView.repository);
+        if (isImagePath(view.path)) {
+          setLoading(false);
+          return;
+        }
         setLoading(true);
         api.gitFile(branchView.repository.path, branchView.branch, relative)
           .then(setDocument).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false));
-      } else if (view.path.toLowerCase().endsWith(".pdf")) {
+      } else if (view.path.toLowerCase().endsWith(".pdf") || isImagePath(view.path)) {
         setBranchView(null);
         api.repository(view.path).then(setRepository).catch(() => setRepository(null));
         setLoading(false);
@@ -294,6 +313,28 @@ export function App() {
                 <a href={`/api/raw?path=${encodeURIComponent(view.path)}`} target="_blank" rel="noreferrer">Abrir PDF ↗</a>
               </div>
               <iframe title={view.path} src={`/api/raw?path=${encodeURIComponent(view.path)}`} />
+            </article>
+          )}
+          {!loading && !searchResults && view.kind === "file" && isImagePath(view.path) && (
+            <article className="document image-document">
+              <div className="document-header">
+                <div><p>{fileExtension(view.path)}</p><h1>{view.path.split("/").at(-1)}</h1><small>{view.path}</small></div>
+                <a
+                  href={branchView
+                    ? api.gitRawUrl(branchView.repository.path, branchView.branch, view.path.slice(branchView.repository.path.length).replace(/^\/+/, ""))
+                    : api.rawUrl(view.path)}
+                  target="_blank"
+                  rel="noreferrer"
+                >Abrir imagen ↗</a>
+              </div>
+              <figure>
+                <img
+                  src={branchView
+                    ? api.gitRawUrl(branchView.repository.path, branchView.branch, view.path.slice(branchView.repository.path.length).replace(/^\/+/, ""))
+                    : api.rawUrl(view.path)}
+                  alt={`Vista previa de ${view.path.split("/").at(-1)}`}
+                />
+              </figure>
             </article>
           )}
         </section>

@@ -13,6 +13,7 @@ const config: PortalConfig = {
   allowedExtensions: [".md", ".ts"],
   allowedNames: ["Dockerfile"],
   maxFileBytes: 1024,
+  maxImageBytes: 5 * 1024 * 1024,
   maxTreeEntries: 100,
   maxSearchResults: 10,
 };

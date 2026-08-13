@@ -10,6 +10,8 @@ security boundary. A read-only leak is still a serious incident.
 - Run the container as a non-root user with all Linux capabilities dropped.
 - Use a positive root allowlist; do not mount a home directory as a shortcut.
 - Never expose secret stores, environment files, private keys or Git internals.
+- Keep image preview restricted to PNG, JPEG and WebP, validate magic bytes and
+  maintain a bounded `maxImageBytes`; do not add SVG to the raster allowlist.
 - Keep the lockfile committed and require a clean `pnpm audit` before releases.
 
 ## Reporting

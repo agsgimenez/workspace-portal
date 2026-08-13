@@ -3,6 +3,7 @@ import path from "node:path";
 import type { FileDocument, SearchResult, TreeEntry } from "../shared/contracts.js";
 import { PortalError } from "./errors.js";
 import { findRepository } from "./git.js";
+import { isImageExtension } from "./images.js";
 import { PathPolicy } from "./policy.js";
 
 export async function listTree(policy: PathPolicy, input: unknown): Promise<TreeEntry[]> {
@@ -27,6 +28,7 @@ export async function listTree(policy: PathPolicy, input: unknown): Promise<Tree
 
 export async function readDocument(policy: PathPolicy, input: unknown): Promise<FileDocument> {
   const target = await policy.resolve(input, "file");
+  if (isImageExtension(target.relative)) throw new PortalError("Binary files are not rendered as text", 415, "BINARY_FILE");
   const size = (await stat(target.absolute)).size;
   const bytesToRead = Math.min(size, policy.config.maxFileBytes);
   const buffer = Buffer.alloc(bytesToRead);
@@ -55,6 +57,7 @@ export async function searchFiles(policy: PathPolicy, queryInput: unknown): Prom
     const target = await policy.resolve(relative);
     const stats = await stat(target.absolute);
     if (stats.isFile()) {
+      if (isImageExtension(relative)) return;
       if (!policy.isAllowedFile(relative) || stats.size > policy.config.maxFileBytes) return;
       if (path.extname(relative).toLowerCase() === ".pdf") return;
       const document = await readDocument(policy, relative);

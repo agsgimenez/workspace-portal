@@ -36,10 +36,11 @@
     ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".vue", ".svelte",
     ".css", ".scss", ".html", ".cs", ".csproj", ".sln", ".sql", ".py",
     ".sh", ".ps1", ".java", ".kt", ".kts", ".xml", ".properties",
-    ".gradle", ".dockerfile", ".pdf"
+    ".gradle", ".dockerfile", ".pdf", ".png", ".jpg", ".jpeg", ".webp"
   ],
   "allowedNames": ["Dockerfile", "Makefile", "LICENSE", "README"],
   "maxFileBytes": 1048576,
+  "maxImageBytes": 5242880,
   "maxTreeEntries": 500,
   "maxSearchResults": 100
 }

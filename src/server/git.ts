@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import type { FileDocument, RepositoryInfo, TreeEntry } from "../shared/contracts.js";
 import { PortalError } from "./errors.js";
+import { isImageExtension, validatedImageMimeType } from "./images.js";
 import type { PathPolicy } from "./policy.js";
 
 async function exists(candidate: string): Promise<boolean> {
@@ -193,6 +194,7 @@ export async function readBranchDocument(
   if (!relativePath || !policy.isAllowedFile(workspacePath)) {
     throw new PortalError("File type is not visible", 403, "FILE_DENIED");
   }
+  if (isImageExtension(relativePath)) throw new PortalError("Binary files are not rendered as text", 415, "BINARY_FILE");
   let objectId: string;
   try {
     const tree = await runGit(repositoryRoot, ["ls-tree", "-z", branch, "--", relativePath], 1024 * 1024);
@@ -218,4 +220,41 @@ export async function readBranchDocument(
     truncated,
     repository,
   };
+}
+
+export async function readBranchImage(
+  policy: PathPolicy,
+  repositoryRoot: string,
+  repository: RepositoryInfo,
+  branchInput: unknown,
+  pathInput: unknown,
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  const branch = requireLocalBranch(repository, branchInput);
+  const relativePath = normalizeBranchPath(pathInput);
+  const workspacePath = path.posix.join(repository.path, relativePath);
+  if (!relativePath || !policy.isAllowedFile(workspacePath) || !isImageExtension(relativePath)) {
+    throw new PortalError("Image type is not visible", 403, "FILE_DENIED");
+  }
+
+  let objectId: string;
+  try {
+    const tree = await runGit(repositoryRoot, ["ls-tree", "-z", branch, "--", relativePath], 1024 * 1024);
+    const match = tree.toString("utf8").match(/^\d+ blob ([0-9a-f]+)\t/);
+    if (!match) throw new Error("not a blob");
+    objectId = match[1];
+  } catch {
+    throw new PortalError("Image not found in branch", 404, "NOT_FOUND");
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = await runGit(repositoryRoot, ["cat-file", "blob", objectId], policy.config.maxImageBytes + 1);
+  } catch {
+    throw new PortalError("Image exceeds the preview limit", 413, "FILE_TOO_LARGE");
+  }
+  if (buffer.length > policy.config.maxImageBytes) {
+    throw new PortalError("Image exceeds the preview limit", 413, "FILE_TOO_LARGE");
+  }
+
+  return { buffer, mimeType: validatedImageMimeType(relativePath, buffer.subarray(0, 12)) };
 }

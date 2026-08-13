@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import type { PortalConfig } from "../shared/contracts.js";
-import { listBranchTree, readBranchDocument, remoteToWebUrl, repositoryInfo } from "./git.js";
+import { listBranchTree, readBranchDocument, readBranchImage, remoteToWebUrl, repositoryInfo } from "./git.js";
 import { PathPolicy } from "./policy.js";
 
 test("normalizes common GitHub remote formats", () => {
@@ -57,13 +57,15 @@ test("browses files from another branch without changing the working tree", asyn
   git("checkout", "-b", "feature/docs");
   await mkdir(path.join(root, "notes"));
   await writeFile(path.join(root, "notes", "feature.md"), "# Feature branch\n");
-  git("add", "notes/feature.md"); git("commit", "-m", "feature");
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL7WQAAAABJRU5ErkJggg==", "base64");
+  await writeFile(path.join(root, "notes", "preview.png"), png);
+  git("add", "notes/feature.md", "notes/preview.png"); git("commit", "-m", "feature");
   git("checkout", "main");
 
   const config: PortalConfig = {
     title: "Test", roots: [{ path: ".", label: "Root", kind: "projects" }],
-    excludeSegments: ["node_modules"], allowedExtensions: [".md"], allowedNames: [],
-    maxFileBytes: 4096, maxTreeEntries: 100, maxSearchResults: 20,
+    excludeSegments: ["node_modules"], allowedExtensions: [".md", ".png"], allowedNames: [],
+    maxFileBytes: 4096, maxImageBytes: 4096, maxTreeEntries: 100, maxSearchResults: 20,
   };
   const policy = new PathPolicy(root, config);
   const repository = await repositoryInfo(root, root);
@@ -72,5 +74,8 @@ test("browses files from another branch without changing the working tree", asyn
   assert.ok(rootEntries.some((entry) => entry.name === "notes" && entry.type === "directory"));
   const document = await readBranchDocument(policy, root, repository, "feature/docs", "notes/feature.md");
   assert.match(document.content, /Feature branch/);
+  const image = await readBranchImage(policy, root, repository, "feature/docs", "notes/preview.png");
+  assert.equal(image.mimeType, "image/png");
+  assert.deepEqual(image.buffer, png);
   assert.equal((await repositoryInfo(root, root))?.branch, "main");
 });
