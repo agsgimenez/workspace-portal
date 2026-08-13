@@ -146,7 +146,10 @@ security perimeter.
 Read-only access can still leak confidential data, so confidentiality is the
 primary boundary:
 
-- hidden paths and common generated directories are excluded;
+- configured internals, caches and common generated directories are excluded,
+  while useful dot-directories such as `.github` remain visible;
+- sensitive dot-directories such as `.ssh`, `.aws`, `.kube`, `.docker` and
+  secret-like path segments remain denied independently of configuration;
 - key stores, databases, environment files and secret-like filenames are
   denied;
 - symlinks cannot escape the visible roots;
