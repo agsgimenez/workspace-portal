@@ -52,6 +52,7 @@ export async function loadConfig(configPath: string): Promise<PortalConfig> {
     allowedExtensions: stringArray(raw.allowedExtensions, "allowedExtensions").map((item) => item.toLowerCase()),
     allowedNames: stringArray(raw.allowedNames, "allowedNames"),
     maxFileBytes: positiveInteger(raw.maxFileBytes, "maxFileBytes"),
+    maxImageBytes: positiveInteger(raw.maxImageBytes ?? 5 * 1024 * 1024, "maxImageBytes"),
     maxTreeEntries: positiveInteger(raw.maxTreeEntries, "maxTreeEntries"),
     maxSearchResults: positiveInteger(raw.maxSearchResults, "maxSearchResults"),
   };

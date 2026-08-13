@@ -8,7 +8,8 @@ import type { PortalConfig } from "../shared/contracts.js";
 import { listProjects } from "./catalog.js";
 import { PortalError } from "./errors.js";
 import { readDocument, listTree, searchFiles } from "./files.js";
-import { findRepository, listBranchTree, readBranchDocument, repositoryInfo } from "./git.js";
+import { findRepository, listBranchTree, readBranchDocument, readBranchImage, repositoryInfo } from "./git.js";
+import { inspectImage, isImageExtension } from "./images.js";
 import { PathPolicy } from "./policy.js";
 
 export interface AppOptions {
@@ -50,12 +51,18 @@ export async function buildApp(options: AppOptions) {
   app.get<{ Querystring: { path?: string } }>("/api/file", async (request) => readDocument(policy, request.query.path));
   app.get<{ Querystring: { path?: string } }>("/api/raw", async (request, reply) => {
     const target = await policy.resolve(request.query.path, "file");
-    if (path.extname(target.relative).toLowerCase() !== ".pdf") {
-      throw new PortalError("Raw preview is only available for PDF files", 415, "PREVIEW_DENIED");
+    if (path.extname(target.relative).toLowerCase() === ".pdf") {
+      reply.type("application/pdf");
+      reply.header("Content-Disposition", "inline");
+      return reply.send(createReadStream(target.absolute));
     }
-    reply.type("application/pdf");
+
+    const image = await inspectImage(policy, request.query.path);
+    reply.type(image.mimeType);
     reply.header("Content-Disposition", "inline");
-    return reply.send(createReadStream(target.absolute));
+    reply.header("Content-Length", image.size);
+    reply.header("Cache-Control", "private, no-store");
+    return reply.send(createReadStream(image.absolute));
   });
   app.get<{ Querystring: { q?: string } }>("/api/search", async (request) => searchFiles(policy, request.query.q));
   app.get<{ Querystring: { path?: string } }>("/api/repository", async (request) => {
@@ -77,6 +84,18 @@ export async function buildApp(options: AppOptions) {
   app.get<{ Querystring: { repo?: string; branch?: string; path?: string } }>("/api/git/file", async (request) => {
     const { target, repository } = await selectedRepository(request.query.repo);
     return readBranchDocument(policy, target.absolute, repository, request.query.branch, request.query.path);
+  });
+  app.get<{ Querystring: { repo?: string; branch?: string; path?: string } }>("/api/git/raw", async (request, reply) => {
+    const { target, repository } = await selectedRepository(request.query.repo);
+    if (typeof request.query.path !== "string" || !isImageExtension(request.query.path)) {
+      throw new PortalError("Branch raw preview is only available for images", 415, "PREVIEW_DENIED");
+    }
+    const image = await readBranchImage(policy, target.absolute, repository, request.query.branch, request.query.path);
+    reply.type(image.mimeType);
+    reply.header("Content-Disposition", "inline");
+    reply.header("Content-Length", image.buffer.length);
+    reply.header("Cache-Control", "private, no-store");
+    return reply.send(image.buffer);
   });
 
   if (options.serveWeb !== false) {

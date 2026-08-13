@@ -56,7 +56,7 @@ execution from the browser.
   Git objects, without `checkout`.
 - **Workspace search** — search visible text with strict result and size limits.
 - **File-aware browsing** — recognize common source/config formats and preview
-  allowed PDFs.
+  allowed PDFs, PNG, JPEG and WebP images.
 - **Markdown PDF export** — print any visible Markdown or MDX document with a
   paper-specific layout, without writing files on the server.
 - **Hardened deployment** — run non-root, drop Linux capabilities and mount the
@@ -131,7 +131,10 @@ file.
     { "path": "README.md", "label": "Workspace", "kind": "document" },
     { "path": "projects", "label": "Projects", "kind": "projects" },
     { "path": "docs", "label": "Documentation", "kind": "knowledge" }
-  ]
+  ],
+  "allowedExtensions": [".md", ".pdf", ".png", ".jpg", ".jpeg", ".webp"],
+  "maxFileBytes": 1048576,
+  "maxImageBytes": 5242880
 }
 ```
 
@@ -150,7 +153,10 @@ primary boundary:
 - branch names must match detected local refs;
 - branch reads use fixed Git arguments without a shell and never perform a
   checkout;
-- raw preview is limited to allowed PDFs;
+- raw preview is limited to allowed PDFs and raster images; PNG, JPEG and WebP
+  signatures must match their extensions and images use a separate size limit;
+- SVG is intentionally excluded from image preview because it can contain
+  active content;
 - Markdown HTML is skipped and responses use a strict CSP;
 - file sizes, tree entries, search queries and results are bounded.
 
@@ -166,11 +172,12 @@ service beyond a private network or authenticated reverse proxy.
 | `GET /api/projects` | Project and repository catalog |
 | `GET /api/tree?path=...` | Visible working-tree directory |
 | `GET /api/file?path=...` | Visible text document |
-| `GET /api/raw?path=...` | Allowed PDF preview |
+| `GET /api/raw?path=...` | Allowed PDF or validated image preview |
 | `GET /api/search?q=...` | Bounded text search |
 | `GET /api/repository?path=...` | Repository metadata for a visible path |
 | `GET /api/git/tree?...` | Directory snapshot from a local branch |
 | `GET /api/git/file?...` | Text blob from a local branch |
+| `GET /api/git/raw?...` | Validated image blob from a local branch |
 
 ## Quality gate
 
