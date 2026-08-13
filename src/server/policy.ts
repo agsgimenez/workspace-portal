@@ -5,6 +5,7 @@ import { PortalError } from "./errors.js";
 
 const SENSITIVE_EXTENSIONS = new Set([".env", ".pem", ".key", ".pfx", ".p12", ".kdbx", ".sqlite", ".db"]);
 const SENSITIVE_NAMES = /(^|[._-])(secret|secrets|credential|credentials|token|password|passwd|auth)([._-]|$)/i;
+const SENSITIVE_SEGMENTS = new Set([".env", ".git", ".ssh", ".gnupg", ".aws", ".kube", ".docker"]);
 
 function inside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
@@ -39,7 +40,11 @@ export class PathPolicy {
 
   isExcluded(relativePath: string): boolean {
     const segments = relativePath.split("/").filter(Boolean);
-    return segments.some((segment) => segment.startsWith(".") || this.config.excludeSegments.includes(segment));
+    return segments.some((segment) =>
+      this.config.excludeSegments.includes(segment)
+      || SENSITIVE_SEGMENTS.has(segment.toLowerCase())
+      || SENSITIVE_NAMES.test(segment),
+    );
   }
 
   isAllowedFile(relativePath: string): boolean {
