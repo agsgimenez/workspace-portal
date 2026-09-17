@@ -1,4 +1,4 @@
-import type { FileDocument, PortalRoot, ProjectSummary, RepositoryInfo, SearchResult, TreeEntry } from "../shared/contracts";
+import type { FileDocument, PortalRoot, ProjectSummary, RepositoryInfo, SearchResult, TreeEntry, WorkSnapshot } from "../shared/contracts";
 
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { headers: { Accept: "application/json" } });
@@ -12,6 +12,7 @@ async function get<T>(url: string): Promise<T> {
 export const api = {
   config: () => get<{ title: string; roots: PortalRoot[] }>("/api/config"),
   projects: () => get<ProjectSummary[]>("/api/projects"),
+  work: () => get<WorkSnapshot>("/api/work"),
   tree: (path: string) => get<TreeEntry[]>(`/api/tree?path=${encodeURIComponent(path)}`),
   file: (path: string) => get<FileDocument>(`/api/file?path=${encodeURIComponent(path)}`),
   rawUrl: (path: string) => `/api/raw?path=${encodeURIComponent(path)}`,

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -31,7 +31,7 @@ async function fixture() {
   await writeFile(path.join(root, "projects", "demo", "large.png"), Buffer.concat([png, Buffer.alloc(128)]));
   await writeFile(path.join(root, "private", "password.md"), "must not leak");
   const app = await buildApp({ workspaceRoot: root, config, serveWeb: false });
-  return { app };
+  return { app, root };
 }
 
 test("root tree only returns configured catalog roots", async () => {
@@ -106,5 +106,71 @@ test("search ignores visible binary images", async () => {
   const response = await app.inject({ method: "GET", url: "/api/search?q=Demo" });
   assert.equal(response.statusCode, 200);
   assert.ok(response.json().some((item: { name: string }) => item.name === "README.md"));
+  await app.close();
+});
+
+test("work snapshot is read-only, bounded and links only visible source files", async () => {
+  const { app, root } = await fixture();
+  const missing = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(missing.statusCode, 404);
+  assert.equal(missing.json().error, "WORK_SNAPSHOT_MISSING");
+
+  await mkdir(path.join(root, "ai-space", "data"), { recursive: true });
+  const snapshotPath = path.join(root, "ai-space", "data", "workspace-backlog.json");
+  const item = {
+    id: "demo-1", project: "Demo", title: "Example", status: "open", nextAction: "Review",
+    blocker: null, owner: null, updatedAt: "2026-09-16T12:00:00Z",
+    sourcePath: "projects/demo/README.md", href: "https://workspace.lab/?view=file&path=projects%2Fdemo%2FREADME.md",
+  };
+  const snapshot = { version: 1, generatedAt: "2026-09-16T12:01:00Z", items: [item] };
+  await writeFile(snapshotPath, JSON.stringify(snapshot));
+  const valid = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(valid.statusCode, 200);
+  assert.equal(valid.headers["cache-control"], "private, no-store");
+  assert.equal(valid.json().items[0].href, "?view=file&path=projects%2Fdemo%2FREADME.md");
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, nextAction: null }] }));
+  const legacy = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(legacy.statusCode, 200);
+  assert.equal(legacy.json().items[0].nextAction, null);
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, id: "LEGACY-DEMO", status: "open", nextAction: null }] }));
+  const legacyAlias = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(legacyAlias.statusCode, 200);
+  assert.equal(legacyAlias.json().items[0].status, "unclassified");
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [
+    { ...item, id: "LEGACY-DEMO", status: "unclassified", nextAction: null },
+    { ...item, id: "CANDIDATE-DEMO", status: "unclassified", nextAction: null },
+  ] }));
+  const unclassified = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(unclassified.statusCode, 200);
+  assert.deepEqual(unclassified.json().items.map((entry: { status: string }) => entry.status), ["unclassified", "unclassified"]);
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, id: "DEMO-1", status: "unclassified" }] }));
+  const managedUnclassified = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(managedUnclassified.statusCode, 500);
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, id: "CANDIDATE-DEMO", status: "open" }] }));
+  const candidateOpen = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(candidateOpen.statusCode, 500);
+  assert.equal((await app.inject({ method: "POST", url: "/api/work" })).statusCode, 404);
+
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, sourcePath: "private/password.md" }] }));
+  const denied = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(denied.statusCode, 500);
+  assert.equal(denied.json().error, "INVALID_WORK_SNAPSHOT");
+  assert.doesNotMatch(denied.body, /must not leak|private\/password/);
+
+  await writeFile(snapshotPath, JSON.stringify({ ...snapshot, items: [{ ...item, status: "javascript:alert(1)" }] }));
+  const malformed = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(malformed.statusCode, 500);
+  await app.close();
+});
+
+test("work snapshot rejects a symlinked data directory", async () => {
+  const { app, root } = await fixture();
+  const outside = await mkdtemp(path.join(os.tmpdir(), "workspace-portal-outside-"));
+  await mkdir(path.join(root, "ai-space"), { recursive: true });
+  await symlink(outside, path.join(root, "ai-space", "data"));
+  await writeFile(path.join(outside, "workspace-backlog.json"), JSON.stringify({ version: 1, generatedAt: "2026-09-16T12:00:00Z", items: [] }));
+  const denied = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(denied.statusCode, 500);
+  assert.equal(denied.json().error, "INVALID_WORK_SNAPSHOT");
   await app.close();
 });

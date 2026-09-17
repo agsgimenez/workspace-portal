@@ -1,12 +1,58 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { FileDocument, PortalRoot, ProjectSummary, RepositoryInfo, SearchResult, TreeEntry } from "../shared/contracts";
+import type { FileDocument, PortalRoot, ProjectSummary, RepositoryInfo, SearchResult, TreeEntry, WorkItem, WorkSnapshot } from "../shared/contracts";
 import { api } from "./api";
 
-type View = { kind: "home" } | { kind: "directory"; path: string } | { kind: "file"; path: string };
+type View = { kind: "home" } | { kind: "work" } | { kind: "directory"; path: string } | { kind: "file"; path: string };
 type BranchView = { repository: RepositoryInfo; branch: string };
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const WORK_COLUMNS = [
+  { status: "open", label: "Por hacer" },
+  { status: "in_progress", label: "En curso" },
+  { status: "blocked", label: "Bloqueado" },
+  { status: "review", label: "En revisión" },
+  { status: "done", label: "Hecho" },
+] as const;
+
+export function groupWorkItems(items: WorkItem[], project = "") {
+  const selected = items.filter((item) => !project || item.project === project);
+  const unclassified = selected.filter((item) => item.status === "unclassified" || item.id.startsWith("LEGACY-") || item.id.startsWith("CANDIDATE-"));
+  const managed = selected.filter((item) => !unclassified.includes(item));
+  const columns = WORK_COLUMNS.map((column) => ({
+    ...column,
+    items: managed.filter((item) => item.status === column.status),
+  }));
+  const lanes = [{ status: "unclassified", label: "Por clasificar", items: unclassified }, ...columns];
+  return { selected, unclassified, managed, columns, lanes };
+}
+
+export function viewFromSearch(search: string): View {
+  const params = new URLSearchParams(search);
+  const kind = params.get("view");
+  if (kind === "work") return { kind: "work" };
+  const path = params.get("path");
+  if ((kind !== "file" && kind !== "directory") || !path
+    || path.startsWith("/") || path.includes("\\") || path.includes("\0")
+    || path.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+    return { kind: "home" };
+  }
+  return { kind, path };
+}
+
+export function urlForView(view: View, currentHref: string): string {
+  const url = new URL(currentHref);
+  url.searchParams.delete("view");
+  url.searchParams.delete("path");
+  url.hash = "";
+  if (view.kind === "work") {
+    url.searchParams.set("view", "work");
+  } else if (view.kind !== "home") {
+    url.searchParams.set("view", view.kind);
+    url.searchParams.set("path", view.path);
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 function fileExtension(filePath: string): string {
   const name = filePath.toLowerCase().split("/").at(-1) ?? "";
@@ -80,11 +126,28 @@ function FileTypeIcon({ entry }: { entry: TreeEntry }) {
   return <span className={`type-icon ${type.tone}`} aria-label={`${entry.extension || "archivo"}`}><span>{type.label}</span></span>;
 }
 
+function WorkCard({ item, unclassified, onOpen }: { item: WorkItem; unclassified?: boolean; onOpen: (item: WorkItem) => void }) {
+  return <article className={`work-card${unclassified ? " work-card-unclassified" : ""}`}>
+    <div className="work-card-top"><span>{item.project}</span>{item.owner && <span>{item.owner}</span>}</div>
+    <h3>{item.title}</h3>
+    {item.nextAction && <p><strong>Próximo paso</strong>{item.nextAction}</p>}
+    {item.blocker && <p className="work-blocker"><strong>Bloqueo</strong>{item.blocker}</p>}
+    {item.id.startsWith("LEGACY-") && <p className="work-unclassified-note">Estado no final declarado en el documento. Sin checkpoint ni vigencia verificada.</p>}
+    {item.id.startsWith("CANDIDATE-") && <p className="work-unclassified-note">Candidato por nombre y fecha. Sin estado explícito, checkpoint ni vigencia verificada.</p>}
+    <footer>
+      <small>{unclassified ? "Documento modificado" : "Checkpoint"} {new Date(item.updatedAt).toLocaleString("es-AR")}</small>
+      <a href={item.href} aria-label={`Abrir documento: ${item.title}`} onClick={(event) => { event.preventDefault(); onOpen(item); }}>Abrir documento ↗</a>
+    </footer>
+  </article>;
+}
+
 export function App() {
-  const [view, setView] = useState<View>({ kind: "home" });
+  const [view, setView] = useState<View>(() => viewFromSearch(window.location.search));
   const [title, setTitle] = useState("Workspace Portal");
   const [roots, setRoots] = useState<PortalRoot[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [work, setWork] = useState<WorkSnapshot | null>(null);
+  const [workProject, setWorkProject] = useState("");
   const [entries, setEntries] = useState<TreeEntry[]>([]);
   const [document, setDocument] = useState<FileDocument | null>(null);
   const [repository, setRepository] = useState<RepositoryInfo | null>(null);
@@ -93,6 +156,33 @@ export function App() {
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const next = viewFromSearch(window.location.search);
+      const params = new URLSearchParams(window.location.search);
+      if (next.kind === "home" && (params.has("view") || params.has("path"))) {
+        window.history.replaceState(null, "", urlForView(next, window.location.href));
+      }
+      setSearchResults(null);
+      setView(next);
+    };
+    window.addEventListener("popstate", onPopState);
+    const params = new URLSearchParams(window.location.search);
+    if (view.kind === "home" && (params.has("view") || params.has("path"))) {
+      window.history.replaceState(null, "", urlForView(view, window.location.href));
+    }
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function navigate(next: View) {
+    const nextUrl = urlForView(next, window.location.href);
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
+      window.history.pushState(null, "", nextUrl);
+    }
+    setSearchResults(null);
+    setView(next);
+  }
 
   useEffect(() => {
     Promise.all([api.config(), api.projects()])
@@ -105,9 +195,14 @@ export function App() {
     setError(null);
     setDocument(null);
     setEntries([]);
-    const inSelectedRepository = branchView && view.kind !== "home"
+    const inSelectedRepository = branchView && (view.kind === "directory" || view.kind === "file")
       && (view.path === branchView.repository.path || view.path.startsWith(`${branchView.repository.path}/`));
-    if (view.kind === "directory") {
+    if (view.kind === "work") {
+      setRepository(null);
+      setBranchView(null);
+      setLoading(true);
+      api.work().then(setWork).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false));
+    } else if (view.kind === "directory") {
       setLoading(true);
       if (inSelectedRepository) {
         const relative = view.path.slice(branchView.repository.path.length).replace(/^\/+/, "");
@@ -148,8 +243,10 @@ export function App() {
     }
   }, [view, branchView?.branch, branchView?.repository.path]);
 
-  const currentPath = view.kind === "home" ? "" : view.path;
+  const currentPath = view.kind === "file" || view.kind === "directory" ? view.path : "";
   const crumbs = useMemo(() => breadcrumbs(currentPath), [currentPath]);
+  const workProjects = useMemo(() => [...new Set(work?.items.map((item) => item.project) ?? [])].sort(), [work]);
+  const groupedWork = useMemo(() => groupWorkItems(work?.items ?? [], workProject), [work, workProject]);
 
   async function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -163,22 +260,22 @@ export function App() {
   }
 
   function openEntry(entry: TreeEntry) {
-    setSearchResults(null);
-    setView(entry.type === "directory" ? { kind: "directory", path: entry.path } : { kind: "file", path: entry.path });
+    navigate(entry.type === "directory" ? { kind: "directory", path: entry.path } : { kind: "file", path: entry.path });
   }
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => { setView({ kind: "home" }); setSearchResults(null); }}>
+        <button className="brand" onClick={() => navigate({ kind: "home" })}>
           <span className="brand-mark">W</span>
           <span><strong>{title}</strong><small>read-only explorer</small></span>
         </button>
 
         <nav aria-label="Raíces visibles">
           <p className="nav-label">Navegación</p>
+          <button onClick={() => navigate({ kind: "work" })}><span>☷</span>Seguimientos</button>
           {roots.map((root) => (
-            <button key={root.path} onClick={() => setView(root.kind === "document" ? { kind: "file", path: root.path } : { kind: "directory", path: root.path })}>
+            <button key={root.path} onClick={() => navigate(root.kind === "document" ? { kind: "file", path: root.path } : { kind: "directory", path: root.path })}>
               <span>{root.kind === "projects" ? "◇" : root.kind === "knowledge" ? "◎" : "□"}</span>{root.label}
             </button>
           ))}
@@ -193,9 +290,10 @@ export function App() {
       <main>
         <header className="topbar">
           <div className="breadcrumbs">
-            <button onClick={() => setView({ kind: "home" })}>Workspace</button>
+            <button onClick={() => navigate({ kind: "home" })}>Workspace</button>
+            {view.kind === "work" && <span>/ Seguimientos</span>}
             {crumbs.map((crumb, index) => (
-              <span key={crumb.path}>/<button onClick={() => setView(index === crumbs.length - 1 && view.kind === "file" ? view : { kind: "directory", path: crumb.path })}>{crumb.label}</button></span>
+              <span key={crumb.path}>/<button onClick={() => navigate(index === crumbs.length - 1 && view.kind === "file" ? view : { kind: "directory", path: crumb.path })}>{crumb.label}</button></span>
             ))}
           </div>
           <form className="search" onSubmit={submitSearch}>
@@ -217,7 +315,7 @@ export function App() {
                     key={branch}
                     onClick={() => {
                       setBranchView(branch === repository.branch ? null : { repository, branch });
-                      setView({ kind: "directory", path: repository.path });
+                      navigate({ kind: "directory", path: repository.path });
                     }}
                   >
                     <span>{branch === repository.branch ? "●" : "○"}</span>{branch}
@@ -235,7 +333,7 @@ export function App() {
               <div className="section-heading"><div><p>Resultados</p><h1>“{search}”</h1></div><span>{searchResults.length} coincidencias</span></div>
               <div className="results">
                 {searchResults.map((result) => (
-                  <button key={`${result.path}:${result.line}`} onClick={() => setView({ kind: "file", path: result.path })}>
+                  <button key={`${result.path}:${result.line}`} onClick={() => navigate({ kind: "file", path: result.path })}>
                     <strong>{result.name}<span>:{result.line}</span></strong><small>{result.path}</small><code>{result.excerpt}</code>
                   </button>
                 ))}
@@ -254,7 +352,7 @@ export function App() {
               <div className="project-grid">
                 {projects.map((project) => (
                   <article key={project.path} className="project-card">
-                    <button className="project-open" onClick={() => setView({ kind: "directory", path: project.path })}>
+                    <button className="project-open" onClick={() => navigate({ kind: "directory", path: project.path })}>
                       <span className="project-icon">{project.name.slice(0, 2).toUpperCase()}</span>
                       <h3>{project.name}</h3>
                       <p>{project.description ?? "Explorar archivos, documentación y repositorios."}</p>
@@ -266,6 +364,29 @@ export function App() {
                   </article>
                 ))}
               </div>
+            </div>
+          )}
+
+          {!loading && !searchResults && view.kind === "work" && !error && work && (
+            <div>
+              <div className="section-heading"><div><p>Backlog global · sólo lectura</p><h1>Tablero de seguimientos</h1></div><span>{groupedWork.selected.length} de {work.items.length} frentes</span></div>
+              <p className="work-explainer">Las cinco etapas de trabajo muestran seguimientos con estado explícito. «Por clasificar» reúne documentos heredados y candidatos sin checkpoint; no es una etapa operativa. Sólo se incluyen Docs directos que el Portal puede leer.</p>
+              <div className="work-filters">
+                <label>Proyecto<select value={workProject} onChange={(event) => setWorkProject(event.target.value)}><option value="">Todos</option>{workProjects.map((project) => <option key={project} value={project}>{project}</option>)}</select></label>
+              </div>
+              {groupedWork.selected.length === 0 && <div className="work-notice">No hay seguimientos de este proyecto en el índice.</div>}
+              {groupedWork.selected.length > 0 && groupedWork.managed.length === 0 && <div className="work-notice">Todavía no hay seguimientos gestionados para este filtro. Los {groupedWork.unclassified.length} documentos de «Por clasificar» no tienen vigencia verificada ni checkpoint.</div>}
+              <div className="work-board" role="group" aria-label="Tablero de seguimientos">
+                {groupedWork.lanes.map((column) => <section key={column.status} className={`work-column work-column-${column.status}`} aria-labelledby={`work-column-${column.status}`}>
+                  <header><h2 id={`work-column-${column.status}`}>{column.label}</h2><span aria-label={`${column.items.length} ${column.status === "unclassified" ? "documentos" : "seguimientos"}`}>{column.items.length}</span></header>
+                  <div className="work-column-items">
+                    {column.status === "unclassified" && <p className="work-column-note">Heredados: estado no final declarado. Candidatos: sólo nombre/fecha. Ninguno tiene checkpoint ni vigencia verificada.</p>}
+                    {column.items.map((item) => <WorkCard key={item.id} item={item} unclassified={column.status === "unclassified"} onOpen={(selected) => navigate({ kind: "file", path: selected.sourcePath })} />)}
+                    {column.items.length === 0 && <p className="work-column-empty">{column.status === "unclassified" ? "Sin documentos por clasificar." : "Sin seguimientos en esta etapa."}</p>}
+                  </div>
+                </section>)}
+              </div>
+              <p className="work-generated">Índice generado {new Date(work.generatedAt).toLocaleString("es-AR")}.</p>
             </div>
           )}
 
@@ -300,7 +421,7 @@ export function App() {
                   const external = safeHref(href);
                   const internal = relativeDocumentPath(document.path, href);
                   if (external) return <a href={external} target="_blank" rel="noreferrer">{children}</a>;
-                  if (internal) return <a href={`#${internal}`} onClick={(event) => { event.preventDefault(); setView({ kind: "file", path: internal }); }}>{children}</a>;
+                  if (internal) return <a href={`?view=file&path=${encodeURIComponent(internal)}`} onClick={(event) => { event.preventDefault(); navigate({ kind: "file", path: internal }); }}>{children}</a>;
                   return <span>{children}</span>;
                 } }}>{document.content}</ReactMarkdown></div>
               ) : <pre className="source"><code>{document.content}</code></pre>}

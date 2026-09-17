@@ -50,6 +50,9 @@ execution from the browser.
 - **Curated workspace navigation** — expose only configured project and
   knowledge roots.
 - **Markdown reading** — render GFM safely and preserve relative document links.
+- **Shareable read-only views** — open a visible file or directory directly with
+  `?view=file&path=<workspace-relative-path>` (or `view=directory`); the API
+  applies the same root, type and sensitive-path policy as normal navigation.
 - **Git-aware projects** — discover nested repositories, active branches and
   supported web remotes.
 - **Branch snapshots** — browse text files from any detected local branch via
