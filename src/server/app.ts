@@ -11,6 +11,7 @@ import { readDocument, listTree, searchFiles } from "./files.js";
 import { findRepository, listBranchTree, readBranchDocument, readBranchImage, repositoryInfo } from "./git.js";
 import { inspectImage, isImageExtension } from "./images.js";
 import { PathPolicy } from "./policy.js";
+import { readWorkSnapshot } from "./work.js";
 
 export interface AppOptions {
   workspaceRoot: string;
@@ -47,6 +48,10 @@ export async function buildApp(options: AppOptions) {
   app.get("/healthz", async () => ({ status: "ok" }));
   app.get("/api/config", async () => ({ title: options.config.title, roots: options.config.roots }));
   app.get("/api/projects", async () => listProjects(policy));
+  app.get("/api/work", async (_request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    return readWorkSnapshot(policy);
+  });
   app.get<{ Querystring: { path?: string } }>("/api/tree", async (request) => listTree(policy, request.query.path ?? ""));
   app.get<{ Querystring: { path?: string } }>("/api/file", async (request) => readDocument(policy, request.query.path));
   app.get<{ Querystring: { path?: string } }>("/api/raw", async (request, reply) => {

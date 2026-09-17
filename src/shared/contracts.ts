@@ -56,3 +56,22 @@ export interface SearchResult {
   line: number;
   excerpt: string;
 }
+
+export interface WorkItem {
+  id: string;
+  project: string;
+  title: string;
+  status: string;
+  nextAction: string | null;
+  blocker: string | null;
+  owner: string | null;
+  updatedAt: string;
+  sourcePath: string;
+  href: string;
+}
+
+export interface WorkSnapshot {
+  version: 1;
+  generatedAt: string;
+  items: WorkItem[];
+}
