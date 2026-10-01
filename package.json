@@ -25,17 +25,17 @@
   },
   "dependencies": {
     "@fastify/rate-limit": "11.2.0",
-    "@fastify/static": "10.1.2",
-    "fastify": "5.11.2",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "@fastify/static": "10.1.5",
+    "fastify": "5.12.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@types/node": "26.1.2",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.0.5",
     "tsx": "4.23.5",
     "typescript": "5.9.3",
