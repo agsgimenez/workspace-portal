@@ -20,7 +20,7 @@ const config: PortalConfig = {
   maxSearchResults: 20,
 };
 
-async function fixture() {
+async function fixture(serveWeb = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "workspace-portal-api-"));
   await mkdir(path.join(root, "projects", "demo"), { recursive: true });
   await mkdir(path.join(root, "private"), { recursive: true });
@@ -30,7 +30,7 @@ async function fixture() {
   await writeFile(path.join(root, "projects", "demo", "fake.png"), "not an image");
   await writeFile(path.join(root, "projects", "demo", "large.png"), Buffer.concat([png, Buffer.alloc(128)]));
   await writeFile(path.join(root, "private", "password.md"), "must not leak");
-  const app = await buildApp({ workspaceRoot: root, config, serveWeb: false });
+  const app = await buildApp({ workspaceRoot: root, config, serveWeb });
   return { app };
 }
 
@@ -106,5 +106,13 @@ test("search ignores visible binary images", async () => {
   const response = await app.inject({ method: "GET", url: "/api/search?q=Demo" });
   assert.equal(response.statusCode, 200);
   assert.ok(response.json().some((item: { name: string }) => item.name === "README.md"));
+  await app.close();
+});
+
+test("unknown API routes return JSON 404 while the web fallback is enabled", async () => {
+  const { app } = await fixture(true);
+  const response = await app.inject({ method: "GET", url: "/api/work" });
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.json().error, "NOT_FOUND");
   await app.close();
 });
