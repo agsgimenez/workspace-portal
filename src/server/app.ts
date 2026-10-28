@@ -102,7 +102,12 @@ export async function buildApp(options: AppOptions) {
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
     const webRoot = path.resolve(moduleDir, "../../web");
     await app.register(fastifyStatic, { root: webRoot, wildcard: false });
-    app.get("/*", async (_request, reply) => reply.sendFile("index.html"));
+    app.get("/*", async (request, reply) => {
+      if (request.url.startsWith("/api/")) {
+        return reply.status(404).send({ error: "NOT_FOUND", message: "Endpoint not found" });
+      }
+      return reply.sendFile("index.html");
+    });
   }
 
   return app;
